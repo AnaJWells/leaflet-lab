@@ -1,83 +1,100 @@
-//example of a object GeoJSON feature
-var geojsonFeature = {
-    "type": "Feature",
-    "properties": {
-        "name": "Coors Field",
-        "amenity": "Baseball Stadium",
-        "popupContent": "This is where the Rockies play!"
-    },
-    "geometry": {
-        "type": "Point",
-        "coordinates": [-104.99404, 39.75621]
-    }
-};
-
 /* initialize the map and set its view */
-// setview returns a map object
-var map = L.map('map').setView([51.505, -0.09], 13);
 
-// adding the object to the map
-L.geoJson(geojsonFeature).addTo(map);
+//function to instantiate the Leaflet map
+function createMap(){
+    //Initialize the map and set its view
+    var map = L.map('map').setView([20, 0], 2);
 
+    //add OSM base tilelayer
+    //L.tileLayer('http://stamen-tiles-{s}.a.ssl.fastly.net/toner-lite/{z}/{x}/{y}.{ext}', {
+	  //  attribution: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+	  //  subdomains: 'abcd',
+    L.tileLayer('http://stamen-tiles-{s}.a.ssl.fastly.net/watercolor/{z}/{x}/{y}.{ext}', {
+	    attribution: 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+	    subdomains: 'abcd',
+	    minZoom: 0,
+	    maxZoom: 20,
+	    ext: 'png'
+    }).addTo(map);
 
-// Similarly GeoJSON objects can be passed as arrays
-//L.geoJson(myLines).addTo(map);
-// Start with empty geojson layers and assign it to a variable
-// later we can add more features
-var myLayer = L.geoJson().addTo(map);
-myLayer.addData(geojsonFeature);
-
-
-//GeoJSON objects also can be passed as arrays
-var myLines = [{
-    "type": "LineString",
-    "coordinates": [[-100, 40], [-105, 45], [-110, 55]]
-}, {
-    "type": "LineString",
-    "coordinates": [[-105, 40], [-110, 45], [-115, 55]]
-}];
-
-// style options used to pass objects
-var myStyle = {
-    "color": "#ff7800",
-    "weight": 5,
-    "opacity": 0.65
+    //call getData function to load MegaCities data
+    getData(map);
 };
 
+// popups
+function onEachFeature(feature, layer) {
+    //no property named popupContent; instead, create html string with all properties
+    var popupContent = "";
+    if (feature.properties) {
+        //loop to add feature property names and values to html string
+        for (var property in feature.properties){
+            popupContent += "<p>" + property + ": " + feature.properties[property] + "</p>";
+        }
+        layer.bindPopup(popupContent);
+    };
+}
 
+//function requesting MegaCities data and place it on the map
+function getData(map){
+    //load the data
+    $.ajax("data/MegaCities.geojson", {
+        dataType: "json",
+        success: function(response){
+          //create marker --circle--  options
+            var geojsonMarkerOptions = {
+                radius: 4,
+                fillColor: "#ff0087",
+                color: "#000",
+                weight: 1,
+                opacity: 1,
+                fillOpacity: 0.8
+            };
 
+            //create a cluster group layer
+            var markers = L.markerClusterGroup();
 
-// The object is passed using the styles myLines and myStyle
-L.geoJson(myLines, {
-    style: myStyle
-}).addTo(map);
+            //loop through features to create markers and add to MarkerClusterGroup
+            for (var i = 0; i < response.features.length; i++) {
+                var a = response.features[i];
+                console.log("feature i", i, JSON.stringify(a));
+               //add properties html string to each marker
+                var properties = "";
+                // collect the cities information
+                for (var property in a.properties){
+                    properties += "<p>" + property + ": " + a.properties[property] + "</p>";
+                };
+                var marker = L.marker(new L.LatLng(a.geometry.coordinates[1], a.geometry.coordinates[0]),
+                    { properties: properties });
 
-// Also, we can pass a function 
+                //$(div).append('<br> Mega Cities:</br>' + JSON.stringify(properties));
 
-var states = [{
-    "type": "Feature",
-    "properties": {"party": "Republican"},
-    "geometry": {
-        "type": "Polygon",
-        "coordinates": [[
-            [-104.05, 48.99],
-            [-97.22,  48.98],
-            [-96.58,  45.94],
-            [-104.03, 45.94],
-            [-104.05, 48.99]
-        ]]
-    }
-}, {
-    "type": "Feature",
-    "properties": {"party": "Democrat"},
-    "geometry": {
-        "type": "Polygon",
-        "coordinates": [[
-            [-109.05, 41.00],
-            [-102.06, 40.99],
-            [-102.03, 36.99],
-            [-109.04, 36.99],
-            [-109.05, 41.00]
-        ]]
-    }
-}];
+                //console.log("props", JSON.stringify(properties));
+                //add a popup for each marker
+                marker.bindPopup(properties);
+                //add marker to MarkerClusterGroup
+                //console.log("marker", JSON.stringify(marker));
+                markers.addLayer(marker);
+            }
+
+            //add marker cluster layer to the map
+            map.addLayer(markers);
+
+            //L.geoJson(response, {
+              // only returns cities with pop greater than X
+                //filter: function(feature, layer) {
+                    //return feature.properties.Pop_1990 > 10.0;
+                //}
+                // return the info for each city
+                //onEachFeature: onEachFeature
+
+            //create a Leaflet GeoJSON layer and add it to the map
+            //L.geoJson(response, {
+            //    pointToLayer: function (feature, latlng) {
+            //      return L.circleMarker(latlng, geojsonMarkerOptions);
+            //    }
+            // }).addTo(map);
+        }
+    });
+};
+
+$(document).ready(createMap);
