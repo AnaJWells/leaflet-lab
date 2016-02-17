@@ -18,7 +18,7 @@ function createMap(){
 	    ext: 'png'
     }).addTo(map);
 
-    //call getData function to load MegaCities data
+    //call the getData function to load MegaCities data
     getData(map);
 };
 
@@ -38,15 +38,30 @@ function getData(map){
                 fillOpacity: 0.8
             };
 
-            //callback function
+                //callback function
 						//create circleMarkers and add them to the cities
-            L.geoJson(response, {
-                pointToLayer: function (feature, latlng) {
-                  return L.circleMarker(latlng, geojsonMarkerOptions);
-                }
-             }).addTo(map);
+      L.geoJson(response, {
+          pointToLayer: function (feature, latlng) {
+                return L.circleMarker(latlng, geojsonMarkerOptions);
+          },
+          // then, display map properties to user
+          onEachFeature: function onEachFeature(feature, layer) {
+            //no property named popupContent; instead, create html string with all properties
+            var popupContent = "";
+            if (feature.properties) {
+              //loop to add feature property names and values to html string
+              for (var property in feature.properties){
+                  popupContent += "<p>" + property + ": " + feature.properties[property] + "</p>";
+              }
+              layer.bindPopup(popupContent);
+            };
+          },
+          filter: function(feature, layer) {
+                return feature.properties.Pop_2015 > 20;
+          }
+          }).addTo(map);
         }
     });
-};
+}; //end getData
 
 $(document).ready(createMap);
