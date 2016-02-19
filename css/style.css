@@ -1,2 +1,27 @@
 /* Stylesheet by Ana J. Wells, 2016 */
-#map { height: 180px; }
+#map {
+  height: 450px;
+    width: 100%;
+    display: inline-block;
+}
+
+#panel {
+    width: 30%;
+    padding: 20px;
+    display: inline-block;
+    vertical-align: top;
+    text-align: left;
+    line-height: 12px;
+}
+
+.range-slider {
+    width: 50%;
+}
+
+#forward {
+    float: right;
+}
+
+#reverse {
+    float: left;
+}

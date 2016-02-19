@@ -3,8 +3,9 @@
 /* initialize the map and set its view */
 // setview returns a map object
 
-var map = L.map('map').setView([51.505, -0.09], 13); //lon,lag, and zoom level
-
+// Set the starting center of the map and zoom level
+// center: lon,lag, and zoom: level
+var map = L.map('map').setView([51.505, -0.09], 13);
 // add tile layer to the map, a Mapbox Streets tile layer
 // this layer sets the URL template
 // Tile are images of 256 pixels
@@ -42,7 +43,7 @@ var circle = L.circle([51.508, -0.11], 500, {
     fillOpacity: 0.5
 }).addTo(map);
 
-/*/ add polygon
+// add polygon
 var polygon = L.polygon([
     [51.509, -0.09],
     [51.503, -0.06],
