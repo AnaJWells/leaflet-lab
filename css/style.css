@@ -1,17 +1,17 @@
 /* Stylesheet by Ana J. Wells, 2016 */
 #map {
-  height: 450px;
-    width: 100%;
+  height: 350px;
+    width: 80%;
     display: inline-block;
 }
 
 #panel {
-    width: 30%;
+    width: 16%;
     padding: 20px;
     display: inline-block;
     vertical-align: top;
     text-align: left;
-    line-height: 12px;
+    line-height: 20px;
 }
 
 .range-slider {

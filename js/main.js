@@ -35,8 +35,8 @@ function createPropSymbols(response, map){
           L.geoJson(response, {
               pointToLayer: pointToLayer,
 
-              filter: function(feature, layer) {
-                return feature.properties[2014] > 7 }
+              //filter: function(feature, layer) {
+              //  return feature.properties[2014] > 3 }
 
           }).addTo(map);
 }; //end create prop symbol
@@ -100,7 +100,7 @@ function pointToLayer(feature, latlng){
 //calculate the radius of each proportional symbol
 function calcPropRadius(attValue) {
     //scale factor to adjust symbol size evenly
-    var scaleFactor = 20;
+    var scaleFactor = 50;
     //area based on attribute value and scale factor
     var area = attValue * scaleFactor;
     //radius calculated based on area
