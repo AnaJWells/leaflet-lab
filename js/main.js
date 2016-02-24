@@ -19,7 +19,7 @@ function createMap(){
 //Step #2 retrieve data and place it on the map
 function getData(map){
     //load the data
-    $.ajax("data/agtoGDP.geojson", {
+    $.ajax("data/agData.geojson", {
         dataType: "json",
         success: function(response){
           //create marker --circle--  options
@@ -100,7 +100,7 @@ function pointToLayer(feature, latlng){
 //calculate the radius of each proportional symbol
 function calcPropRadius(attValue) {
     //scale factor to adjust symbol size evenly
-    var scaleFactor = 50;
+    var scaleFactor = 30;
     //area based on attribute value and scale factor
     var area = attValue * scaleFactor;
     //radius calculated based on area
