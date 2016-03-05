@@ -7,7 +7,7 @@ function createMap(){
     //Esri_WorldPhysical
     L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}', {
     	attribution: 'Tiles &copy; Esri &mdash; Source: US National Park Service',
-    	maxZoom: 8  //8
+    	maxZoom: 7
     }).addTo(map);
 
     getData(map);
@@ -16,7 +16,7 @@ function createMap(){
 //function requesting  GEOJSON data and if success callback functions
 function getData(map){
     //load the data
-    $.ajax("data/agtoGDP.geojson", { //, {agData.geojson  toGDP.geojson"
+    $.ajax("data/agData.geojson", { //, {agData.geojson  toGDP.geojson"
         dataType: "json",
         success: function(data){
           //the attributes array -- yrs for sequence
@@ -24,42 +24,33 @@ function getData(map){
             // create proportional popups symbols for retrieving information
             createPropSymbols(data, map, attributes);
             createSequenceControls(map, attributes);
-            //changeCirclesWhenZooming (map);
+            //changeCirclesWhenZooming (map, attributes);
          }
     });
 };
 
-function changeCirclesWhenZooming (map) {
+function changeCirclesWhenZooming (map, attributes) {
   var times;
   map.on('zoomend', function(layer) {
 
       map.eachLayer (function(layer) {
         var currentZoom = map.getZoom();
-  //      if (layer.feature && layer.feature.properties[attribute]){
+        if (layer.feature && layer.feature.properties[attribute]){
+              //update the layer popups
+            var props = layer.feature.properties;
+            var attValue = props[attribute];
+            var radius = calcPropRadius(attValue);
 
-
-        if (layer.options) {
-          var radious = layer.options.radius;
-          console.log('before', radious);
-          layer.options.setRadius = layer.options.setRadius * 100; //currentZoom;
-          console.log('later',  layer.options.radius);
-        }
+            if (layer.options) {
+              var radious = layer.options.radius;
+              console.log('before', radious);
+              layer.options.setRadius(layer.options.setRadius * 100);
+              console.log('later',  layer.options.radius);
+            };
+        };
       });
   });
 };
-/*
-map.eachLayer(function(layer){
-     // does the layer has a feature name properties?
-      if (layer.feature && layer.feature.properties[attribute]){
-      //update the layer style and popup
-        var props = layer.feature.properties;
-      //update each feature's radius based on new attribute values
-        var attValue = props[attribute];
-        var radius = calcPropRadius(attValue);
-      //layer.setFillColor: "#ff0087",
-        layer.setRadius(radius);
-
-*/
 
 
 
@@ -81,7 +72,7 @@ function processData(data){
     return attributes;
 };
 
-//Step 3: Add circle markers for point features to the map
+//Add circle markers for point features to the map
 function createPropSymbols(data, map, attributes){
     //create a GeoJSON layer and add it to the map
     // pointToLayer is an option of L.geoJson
@@ -94,21 +85,6 @@ function createPropSymbols(data, map, attributes){
     }).addTo(map);
 };
 
-
-///////////////   createPopup function
-function createPopup(properties, attribute, layer, radius) {
-  // format the popup content
-  var attValue = Number(properties[attribute]);
-  attValue = attValue.toFixed(2);
-
-  var popupContent = "<p><b>Country Name:</b> " + properties.CountryName + "</p>" ;
-  popupContent += "<p>" + attValue + "% Agr to GDP in " + attribute + "</p>";
-
-  //bind the popup to the circle marker
-  layer.bindPopup(popupContent, {
-      offset: new L.Point(0,-radius),
-  });
-}
 
 //function to convert markers to circle markers
 function pointToLayer(feature, latlng, attributes){
@@ -161,10 +137,26 @@ function pointToLayer(feature, latlng, attributes){
 };
 
 
+///////////////   createPopup function
+function createPopup(properties, attribute, layer, radius) {
+  // format the popup content
+  var attValue = Number(properties[attribute]);
+  attValue = attValue.toFixed(2);
+
+  var popupContent = "<p><b>Country Name:</b> " + properties.CountryName + "</p>" ;
+  popupContent += "<p>" + attValue + "% Agr to GDP in " + attribute + "</p>";
+
+  //bind the popup to the circle marker
+  layer.bindPopup(popupContent, {
+      offset: new L.Point(0,-radius),
+  });
+};
+
+
 //calculate the radius of each proportional symbol
 function calcPropRadius(attValue) {
     //scale factor to adjust symbol size evenly
-    var scaleFactor = 20;
+    var scaleFactor = 15;
     //area based on attribute value and scale factor
     var area = attValue * scaleFactor;
     //radius calculated based on area
