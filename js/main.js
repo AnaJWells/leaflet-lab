@@ -7,7 +7,7 @@ function createMap(){
     //Esri_WorldPhysical
     L.tileLayer('http://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}', {
     	attribution: 'Tiles &copy; Esri &mdash; Source: US National Park Service',
-    	maxZoom: 7
+    	maxZoom: 10
     }).addTo(map);
 
     getData(map);
@@ -25,6 +25,7 @@ function getData(map){
             createPropSymbols(data, map, attributes);
             createSequenceControls(map, attributes);
             //changeCirclesWhenZooming (map, attributes);
+            createLegend(map, attributes);
          }
     });
 };
@@ -90,7 +91,6 @@ function createPropSymbols(data, map, attributes){
 function pointToLayer(feature, latlng, attributes){
     //Determine which attribute to visualize with proportional symbols
     var attribute = attributes[0];  //does this for all the countries
-    //console.log(attribute);  //1985  do this only for first yr
     //create marker options
     var options = {
         fillColor: "#14a137",
@@ -100,30 +100,17 @@ function pointToLayer(feature, latlng, attributes){
         stroke: false
     };
 
-    //console.log('antes de num', feature.properties[attribute]);
     //For each feature, determine its agtoGDP value for the selected year
     var attValue = Number(feature.properties[attribute]);
-    //var attValue = feature.properties[attribute];
-    attValue = attValue.toFixed(2);
 
-/*    if (attValue == 0) {
-          options.fillOpacity = 0.0; //0.6
-          options.opacity = 0.0;  //1
-          options.radius = calcPropRadius(0.01);
-    }
-    else
-    {
-          options.radius = calcPropRadius(attValue);
-    }
-*/
+    // calculate radius for the circle
     options.radius = calcPropRadius(attValue);
-    var layer = L.circleMarker(latlng, options, {
-        title: feature.properties.CountryName,
-    });
 
+    //create the circlemarker and popups with the options and add to layer
+    // this works for null values : )
+    var layer = L.circleMarker(latlng, options);
     createPopup(feature.properties, attribute, layer, options.radius);
 
-    //event listeners to open popup on hover
     layer.on({
         mouseover: function(){
             this.openPopup();
@@ -137,12 +124,13 @@ function pointToLayer(feature, latlng, attributes){
 };
 
 
+
 ///////////////   createPopup function
 function createPopup(properties, attribute, layer, radius) {
   // format the popup content
   var attValue = Number(properties[attribute]);
   attValue = attValue.toFixed(2);
-
+///////
   var popupContent = "<p><b>Country Name:</b> " + properties.CountryName + "</p>" ;
   popupContent += "<p>" + attValue + "% Agr to GDP in " + attribute + "</p>";
 
@@ -152,91 +140,237 @@ function createPopup(properties, attribute, layer, radius) {
   });
 };
 
-
 //calculate the radius of each proportional symbol
-function calcPropRadius(attValue) {
+function calcPropRadius (attValue) {
     //scale factor to adjust symbol size evenly
-    var scaleFactor = 15;
+    var scaleFactor = 0.75;  //15;
     //area based on attribute value and scale factor
-    var area = attValue * scaleFactor;
+    var area = Math.pow(attValue * scaleFactor,2);
+    //console.log('area', area);
     //radius calculated based on area
     var radius = Math.sqrt(area/Math.PI);
     return radius;
 };
 
-
-///////////////// ----------- Sequence
-// function that set a slider and put it in the panel
-function createSequenceControls(map, attributes){
-    //create range input element (slider)
-    $('#panel').append('<input class="range-slider" type="range">');
-    $('#panel').append('<button class="skip" id="reverse">Reverse</button>');
-    $('#panel').append('<button class="skip" id="forward">Skip</button>');
-
-    $('#reverse').html('<img src="img/reverse.png">');
-    $('#forward').html('<img src="img/forward.png">');
-
-    //set  attributes for slider
-    $('.range-slider').attr({
-      max: 6,
-      min: 0,
-      value: 0,
-      step: 1
-    });
-
-     //Input listener for slider
-    $('.range-slider').on('input', function(){
-        //set get the new index value within 0 to 6
-        var index = $(this).val();
-        console.log('index', index);
-        console.log('value', attributes[index]);
-        updatePropSymbols(map, attributes[index]);
-    });
-
-    //click listener for buttons
-    $('.skip').click(function(){
-      //get the old index value
-      var index = $('.range-slider').val();
-      console.log ('skip',index);
-      //Increment or decrement depending on button clicked
-      if ($(this).attr('id') == 'forward'){
-        index++;
-        //wrap around to first attribute
-        index = index > 6 ? 0 : index;
-      } else if ($(this).attr('id') == 'reverse'){
-        index--;
-        //wrap around to last attribute
-        index = index < 0 ? 6 : index;
-      };
-      //update slider
-      $('.range-slider').val(index);
-      updatePropSymbols(map, attributes[index]);
-    }); //end of listerner or buttons
-
+//calculate the radius of each proportional symbol
+function calcPropRadius2 (attValue) {
+	//scale factor to adjust symbol size evenly
+	var scaleFactor = 40;
+	//area based on attribute value and scale factor
+	var area = attValue * scaleFactor;
+	//radius calculated based on area
+	var radius = Math.sqrt(area/Math.PI);
+	return radius;
 };
 
+
+///////////////// ----------- Sequence
+function createSequenceControls(map, attributes){
+    var SequenceControl = L.Control.extend({
+        options: {
+            position: 'bottomleft'
+        },
+
+        onAdd: function (map) {
+            // create the control container div with a particular class name
+            var container = L.DomUtil.create('div', 'sequence-control-container');
+            //create slider
+            $(container).append('<input class="range-slider" type="range">');
+            //add skip buttons
+            $(container).append('<button class="skip" id="reverse" title="Reverse">atras</button>');
+            $(container).append('<button class="skip" id="forward" title="Forward">adelante</button>');
+
+            //kill any mouse event listeners on the map
+            $(container).on('mousedown dblclick', function(e){
+                L.DomEvent.stopPropagation(e);
+            });
+
+            return container;
+          }
+      });
+
+      map.addControl(new SequenceControl());
+
+      //replace button content with images
+    	$('#reverse').html('<img src="img/reverse.png">');
+    	$('#forward').html('<img src="img/forward.png">');
+
+      //set  attributes for slider
+      $('.range-slider').attr({
+        type: 'range',
+        max: 6,
+        min: 0,
+        value: 0,
+        step: 1
+      });
+
+      //click listener for buttons
+      $('.skip').click(function(){
+              //get the old index value
+        var index = $('.range-slider').val();
+              //Increment or decrement depending on button clicked
+        if ($(this).attr('id') == 'forward'){
+          index++;
+                //wrap around to first attribute
+          index = index > 6 ? 0 : index;
+        } else if ($(this).attr('id') == 'reverse'){
+          index--;
+                //wrap around to last attribute
+          index = index < 0 ? 6 : index;
+        };
+              //update slider
+        $('.range-slider').val(index);
+        updatePropSymbols(map, attributes[index]);
+      }); //end of listerner or buttons
+
+      //Input listener for slider
+      $('.range-slider').on('input', function(){
+        //set get the new index value within 0 to 6
+        var index = $(this).val();
+        console.log(index);
+        updatePropSymbols(map, attributes[index]);
+      });
+};
+
+
+
+/// Legends
+function createLegend(map, attributes){
+    var LegendControl = L.Control.extend({
+        options: {
+            position: 'bottomright'
+        },
+
+        onAdd: function (map) {
+            // create the control container with a particular class name
+            //var container = L.DomUtil.create('div', 'sequence-control-container');
+
+            var container = L.DomUtil.create('div', 'legend-control-container');
+            $(container).append('<div id="temporal-legend">')
+
+      			//start attribute legend svg string
+      			var svg = '<svg id="attribute-legend" width="180px" height="190px">';
+
+      			//array - circle element for three attr values
+      			var circles = {
+      				max: 20,
+      				mean: 40,
+      				min: 60
+      			};
+
+      			//loop to add each circle and text to svg string
+      			for (var circle in circles){
+      				//circle string
+      				svg += '<circle class="legend-circle" id="' + circle +
+               '" fill="#14a137" fill-opacity="0.4" stroke="#000000" cx="30"/>';
+      				svg += '<text id="' + circle + '-text" x="65" y="' +
+              circles[circle] + '"></text>';
+      			};
+      			//close svg string
+      			svg += "</svg>";
+
+      			//add attribute legend svg to container
+      			$(container).append(svg);
+            return container;
+        }
+    });
+
+    map.addControl(new LegendControl());
+    var initialYear = attributes[0];
+    updateLegend(map, initialYear);
+};
+///
+//////
+
+function updateLegend(map, attribute){
+	//create content for legend
+	var year = attribute;
+	var content = "Per Agr of GDP in " + year;
+	//replace legend content
+	$('#temporal-legend').html(content);
+
+	var circleValues = getCircleValues(map, attribute);  //legend values
+	for (var key in circleValues){
+		//get the radius
+
+    //I had to add 2 to make circles with very small circles to print
+		  var radius = calcPropRadius(circleValues[key]) + 2;  //otherwise radius is too small
+
+		$('#'+key).attr({
+			cy: 59 - radius,
+			r: radius
+		});
+
+    //format legend values
+		$('#'+key+'-text').text(Math.round(circleValues[key]*100)/100 +
+     "% ag per GDP");
+	};
+};
+
+//Calculate the max, mean, and min values for a given attribute
+function getCircleValues(map, attribute){
+	//start with min at highest possible and max at lowest possible number
+	var min = Infinity,
+		max = -Infinity;
+
+	map.eachLayer(function(layer){
+		//get the attribute value
+		if (layer.feature){
+			var attributeValue = Number(layer.feature.properties[attribute]);
+
+			//test for min
+			if (attributeValue < min){
+				min = attributeValue;
+			};
+
+			//test for max
+			if (attributeValue > max){
+				max = attributeValue;
+			};
+		};
+	});
+	//set mean
+	var mean = (max + min) / 2;
+  //console.log(min,mean, max);
+	//return values as an object
+	return {
+		max: max,
+		mean: mean,
+		min: min
+	};
+};
+
+////////
 //Resize proportional symbols according to new attribute values
 function updatePropSymbols(map, attribute){
     // attribute is a year
   map.eachLayer(function(layer){
 
-       // does the layer has a feature name properties?
+       // does the layer has a feature_name and value to this year?
       if (layer.feature && layer.feature.properties[attribute]){
-        //update the layer style and popup
-
+        //update the layer size and popup
         var props = layer.feature.properties;
 
-        //update each feature's radius based on new attribute values
-        var attValue = props[attribute];
-
-        var radius = calcPropRadius(attValue);
+        var radius = calcPropRadius(props[attribute]);
         // sets new radius size
         layer.setRadius(radius);
-        // update content to popup
-        createPopup(props, attribute, layer, radius);
 
+        // update popup and legend content
+        createPopup(props, attribute, layer, radius);
+        updateLegend(map, attribute);
+      }
+      // if the layer has this feature_name, but the value is null, update popup with null value
+      // and circle must have zero radius (no circle)
+      else if (layer.feature && layer.feature.properties.CountryName ) //exist, but null value
+      {
+
+        var attValue = Number(layer.feature.properties[attribute]);
+        if (attValue == 0){
+          layer.setRadius(attValue);
+        }
       }; //end of if
   }); // end eachLayer
 };
 
+// finally create the map!
 $(document).ready(createMap);
