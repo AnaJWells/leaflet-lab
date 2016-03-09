@@ -30,30 +30,6 @@ function getData(map){
     });
 };
 
-function changeCirclesWhenZooming (map, attributes) {
-  var times;
-  map.on('zoomend', function(layer) {
-
-      map.eachLayer (function(layer) {
-        var currentZoom = map.getZoom();
-        if (layer.feature && layer.feature.properties[attribute]){
-              //update the layer popups
-            var props = layer.feature.properties;
-            var attValue = props[attribute];
-            var radius = calcPropRadius(attValue);
-
-            if (layer.options) {
-              var radious = layer.options.radius;
-              console.log('before', radious);
-              layer.options.setRadius(layer.options.setRadius * 100);
-              console.log('later',  layer.options.radius);
-            };
-        };
-      });
-  });
-};
-
-
 
 
 ////////
@@ -73,20 +49,54 @@ function processData(data){
     return attributes;
 };
 
-//Add circle markers for point features to the map
+//// Retrieve
+//////Add circle markers for point features to the map
 function createPropSymbols(data, map, attributes){
     //create a GeoJSON layer and add it to the map
     // pointToLayer is an option of L.geoJson
-    L.geoJson(data, {
+    var featLayer = L.geoJson(data, {
         pointToLayer: function (feature, latlng ) {
             //feature contains data of each Country
             //attributes is an array of keys
             return pointToLayer(feature, latlng, attributes);
         }
-    }).addTo(map);
+    })
+		map.addLayer(featLayer); // add layer to map
+
+    ///// This sections is for the fifth Operator
+    // get the name for the search control
+    var name;
+    for (var attribute in data.features[0].properties){
+        //only take attributes with values
+        if (attribute == "CountryName") {
+            name = attribute;
+        };
+    }
+    //
+    console.log (data.features[0].properties);
+		// add search control to the map layer
+		var searchControl = new L.Control.Search({
+			layer: featLayer,
+			propertyName: name, //feature.properties.CountryName, featLayer.title,
+			circleLocation:false
+		});  //
+
+		searchControl.on('search_locationfound', function(e) {
+				 // style of search
+		     e.layer.setStyle({fillColor: '#3f0', color: '#0f0'});
+				 if(e.layer._popup)
+			 		  {e.layer.openPopup()};
+	  }).on('search_collapsed', function(e) {
+		     featuresLayer.eachLayer(function(layer) {	//restore feature color
+			        featuresLayer.resetStyle(layer);
+		     });
+	  });
+		// add to map to inizialize search control
+		map.addControl( searchControl );  //inizialize search control
 };
 
 
+/////////////////////
 //function to convert markers to circle markers
 function pointToLayer(feature, latlng, attributes){
     //Determine which attribute to visualize with proportional symbols
@@ -108,9 +118,11 @@ function pointToLayer(feature, latlng, attributes){
 
     //create the circlemarker and popups with the options and add to layer
     // this works for null values : )
-    var layer = L.circleMarker(latlng, options);
-    createPopup(feature.properties, attribute, layer, options.radius);
+    var layer = L.circleMarker(latlng, options, {
+          title: feature.properties.CountryName,
+    });
 
+    createPopup(feature.properties, attribute, layer, options.radius)
     layer.on({
         mouseover: function(){
             this.openPopup();
@@ -141,6 +153,7 @@ function createPopup(properties, attribute, layer, radius) {
 };
 
 //calculate the radius of each proportional symbol
+// This is a better option for my circles
 function calcPropRadius (attValue) {
     //scale factor to adjust symbol size evenly
     var scaleFactor = 0.75;  //15;
@@ -164,7 +177,8 @@ function calcPropRadius2 (attValue) {
 };
 
 
-///////////////// ----------- Sequence
+/////////////////////////////////////////
+/////////////////// ----------- Sequence
 function createSequenceControls(map, attributes){
     var SequenceControl = L.Control.extend({
         options: {
@@ -233,8 +247,38 @@ function createSequenceControls(map, attributes){
 };
 
 
+function updatePropSymbols(map, attribute){
+    // attribute is a year
+    // updatePropSymbos making sure that the new symbol has not a null value
+  map.eachLayer(function(layer){
+       // does the layer has a feature_name and value to this year?
+      if (layer.feature && layer.feature.properties[attribute]){
+        //update the layer size and popup
+        var props = layer.feature.properties;
 
-/// Legends
+        var radius = calcPropRadius(props[attribute]);
+        // sets new radius size
+        layer.setRadius(radius);
+
+        // update popup and legend content
+        createPopup(props, attribute, layer, radius);
+        updateLegend(map, attribute);
+      }
+      // if the layer has this feature_name, but the value is null, update popup with null value
+      // and circle must have zero radius (no circle)
+      else if (layer.feature && layer.feature.properties.CountryName ) //exist, but null value
+      {
+
+        var attValue = Number(layer.feature.properties[attribute]);
+        if (attValue == 0){
+          layer.setRadius(attValue);
+        }
+      }; //end of if
+  }); // end eachLayer
+};
+
+////////////////////////////
+/////////// Legends
 function createLegend(map, attributes){
     var LegendControl = L.Control.extend({
         options: {
@@ -317,16 +361,20 @@ function getCircleValues(map, attribute){
 		//get the attribute value
 		if (layer.feature){
 			var attributeValue = Number(layer.feature.properties[attribute]);
+      //console.log ('es zero?', attributeValue);
+      // make sure taht the circles have not a min of zero due to null values
+      if (attributeValue > 0) {
+        //console.log('no es zero?', attributeValue);
+			   //test for min
+			      if (attributeValue < min){
+				          min = attributeValue;
+			      };
 
-			//test for min
-			if (attributeValue < min){
-				min = attributeValue;
-			};
-
-			//test for max
-			if (attributeValue > max){
-				max = attributeValue;
-			};
+			         //test for max
+			      if (attributeValue > max){
+				          max = attributeValue;
+			      };
+      };
 		};
 	});
 	//set mean
@@ -342,35 +390,33 @@ function getCircleValues(map, attribute){
 
 ////////
 //Resize proportional symbols according to new attribute values
-function updatePropSymbols(map, attribute){
-    // attribute is a year
-  map.eachLayer(function(layer){
 
-       // does the layer has a feature_name and value to this year?
-      if (layer.feature && layer.feature.properties[attribute]){
-        //update the layer size and popup
-        var props = layer.feature.properties;
-
-        var radius = calcPropRadius(props[attribute]);
-        // sets new radius size
-        layer.setRadius(radius);
-
-        // update popup and legend content
-        createPopup(props, attribute, layer, radius);
-        updateLegend(map, attribute);
-      }
-      // if the layer has this feature_name, but the value is null, update popup with null value
-      // and circle must have zero radius (no circle)
-      else if (layer.feature && layer.feature.properties.CountryName ) //exist, but null value
-      {
-
-        var attValue = Number(layer.feature.properties[attribute]);
-        if (attValue == 0){
-          layer.setRadius(attValue);
-        }
-      }; //end of if
-  }); // end eachLayer
-};
 
 // finally create the map!
 $(document).ready(createMap);
+
+
+
+////////
+function changeCirclesWhenZooming (map, attributes) {
+  var times;
+  map.on('zoomend', function(layer) {
+
+      map.eachLayer (function(layer) {
+        var currentZoom = map.getZoom();
+        if (layer.feature && layer.feature.properties[attribute]){
+              //update the layer popups
+            var props = layer.feature.properties;
+            var attValue = props[attribute];
+            var radius = calcPropRadius(attValue);
+
+            if (layer.options) {
+              var radious = layer.options.radius;
+              console.log('before', radious);
+              layer.options.setRadius(layer.options.setRadius * 100);
+              console.log('later',  layer.options.radius);
+            };
+        };
+      });
+  });
+};
